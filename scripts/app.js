@@ -3,13 +3,14 @@
 import { randomIntFromInterval, switchValues, fromObjToArr } from "./utils.js";
 
 var Game = function () {
-  var gameObj = {
+  this.gameObj = {
     fieldArr: [],
     status: 'game',
     speed: 1000,
   };
+
   var roomsArr = [];
-  var npcArr = [];
+  this.npcArr = [];
   
   this.initWalls = function (gameObj) {
     var fieldElem = document.getElementById('field');
@@ -195,7 +196,7 @@ var Game = function () {
     var npc = {
       pos: posArr,
       healht: 100,
-      hitDmg: 10,
+      hitDmg: 40,
       status: 'alive',
       moveDirection: 'none',
     }
@@ -224,7 +225,7 @@ var Game = function () {
     var person = {
       pos: this.findEmptyPlace(fieldArr),
       healht: 100,
-      hitDmg: 35,
+      hitDmg: 25,
       status: 'alive',
     }
 
@@ -277,6 +278,15 @@ var Game = function () {
     }
   }
 
+  this.deleteItem = function (fieldArr, pos) {
+    var nodeToDelete = fieldArr[pos[1]][pos[0]].node.firstChild;
+
+    if (nodeToDelete) {
+      fieldArr[pos[1]][pos[0]].node.removeChild(nodeToDelete);
+      fieldArr[pos[1]][pos[0]].item = 'tile';
+    }
+  }
+
   this.randomizeDirection = function () {
     var num = randomIntFromInterval(0, 3);
     
@@ -292,7 +302,7 @@ var Game = function () {
     }
   }
 
-  this.isItEmpty = function (fieldArr, pos) {
+  this.isItEmpty = function (fieldArr, pos, forWhom) {
     if (pos[1] > 23 || pos[1] < 0) {
       return false;
     }
@@ -306,28 +316,43 @@ var Game = function () {
     if (posItem === 'tile') {
       return true;
     }
+
+    if (forWhom === 'person' && (posItem === 'Sword' || posItem === 'HP')) {
+      return true;
+    }
     
     return false;
   }
 
-  this.checkDirectionToMove = function (fieldArr, pos, dir) {
+  this.checkDirectionToMove = function (fieldArr, pos, dir, forWhom) {
     switch (dir) {
       case 'up':
-        if (this.isItEmpty(fieldArr, [pos[0], pos[1] - 1])) {
+        if (this.isItEmpty(fieldArr, [pos[0], pos[1] - 1], forWhom)) {
           return [pos[0], pos[1] - 1];
         }
+
+        break;
+
       case 'right':
-        if (this.isItEmpty(fieldArr, [pos[0] + 1, pos[1]])) {
+        if (this.isItEmpty(fieldArr, [pos[0] + 1, pos[1]], forWhom)) {
           return [pos[0] + 1, pos[1]];
         }
+
+        break;
+      
       case 'down':
-        if (this.isItEmpty(fieldArr, [pos[0], pos[1] + 1])) {
+        if (this.isItEmpty(fieldArr, [pos[0], pos[1] + 1], forWhom)) {
           return [pos[0], pos[1] + 1];
         }
+
+        break;
+
       case 'left':
-        if (this.isItEmpty(fieldArr, [pos[0] - 1, pos[1]])) {
+        if (this.isItEmpty(fieldArr, [pos[0] - 1, pos[1]], forWhom)) {
           return [pos[0] - 1, pos[1]];
         }
+
+        break;
     }
 
     return false;
@@ -337,19 +362,19 @@ var Game = function () {
     var npcPos = npcObj.pos;
     var cantMoveCount = 0;
 
-    if (!this.checkDirectionToMove(fieldArr, npcPos, 'up')) {
+    if (!this.checkDirectionToMove(fieldArr, npcPos, 'up', 'npc')) {
       cantMoveCount++;
     }
 
-    if (!this.checkDirectionToMove(fieldArr, npcPos, 'right')) {
+    if (!this.checkDirectionToMove(fieldArr, npcPos, 'right', 'npc')) {
       cantMoveCount++;
     }
 
-    if (!this.checkDirectionToMove(fieldArr, npcPos, 'down')) {
+    if (!this.checkDirectionToMove(fieldArr, npcPos, 'down', 'npc')) {
       cantMoveCount++;
     }
 
-    if (!this.checkDirectionToMove(fieldArr, npcPos, 'left')) {
+    if (!this.checkDirectionToMove(fieldArr, npcPos, 'left', 'npc')) {
       cantMoveCount++;
     }
     
@@ -363,10 +388,10 @@ var Game = function () {
 
     setInterval(() => {
       npcArr.forEach((item) => {
-        if (this.checkIsPossibleToMove(gameObj.fieldArr, item)) {
+        if (this.checkIsPossibleToMove(gameObj.fieldArr, item) && item.status === 'alive') {
           do {
             var moveDirection = this.randomizeDirection();
-            var newPos = this.checkDirectionToMove(gameObj.fieldArr, item.pos, moveDirection);
+            var newPos = this.checkDirectionToMove(gameObj.fieldArr, item.pos, moveDirection, 'npc');
           } while (!newPos);
   
           this.moveItem(gameObj.fieldArr, item.pos, newPos);
@@ -376,53 +401,157 @@ var Game = function () {
     }, gameObj.speed)
   }
   
-  this.buttonPressedEvent = function (code, fieldArr, person) {
+  this.buttonPressedEvent = function (code, fieldArr, person, npcArr) {
     switch (code) {
       case 'KeyW':
-        var newPos = this.checkDirectionToMove(fieldArr, person.pos, 'up');
+        var newPos = this.checkDirectionToMove(fieldArr, person.pos, 'up', 'person');
 
         if (newPos) {
+          var newPosItem = fieldArr[newPos[1]][newPos[0]].item;
+  
+          if (newPosItem === 'Sword' || newPosItem === 'HP') {
+            this.takeItem(fieldArr, newPos, person);
+          }
+
           this.moveItem(fieldArr, person.pos, newPos);
+          person.pos = newPos;
         }
+
+        break;
+
+      case 'KeyD':
+        var newPos = this.checkDirectionToMove(fieldArr, person.pos, 'right', 'person');
+
+        if (newPos) {
+          var newPosItem = fieldArr[newPos[1]][newPos[0]].item;
+  
+          if (newPosItem === 'Sword' || newPosItem === 'HP') {
+            this.takeItem(fieldArr, newPos, person);
+          }
+
+          this.moveItem(fieldArr, person.pos, newPos);
+          person.pos = newPos;
+        }
+
+        break;
+
+      case 'KeyS':
+        var newPos = this.checkDirectionToMove(fieldArr, person.pos, 'down', 'person');
+
+        if (newPos) {
+          var newPosItem = fieldArr[newPos[1]][newPos[0]].item;
+  
+          if (newPosItem === 'Sword' || newPosItem === 'HP') {
+            this.takeItem(fieldArr, newPos, person);
+          }
+
+          this.moveItem(fieldArr, person.pos, newPos);
+          person.pos = newPos;
+        }
+
+        break;
+
+      case 'KeyA':
+        var newPos = this.checkDirectionToMove(fieldArr, person.pos, 'left', 'person');
+
+        if (newPos) {
+          var newPosItem = fieldArr[newPos[1]][newPos[0]].item;
+  
+          if (newPosItem === 'Sword' || newPosItem === 'HP') {
+            this.takeItem(fieldArr, newPos, person);
+          }
+
+          this.moveItem(fieldArr, person.pos, newPos);
+          person.pos = newPos;
+        }
+
+        break;
+
+      case 'Space':
+        var topPos = [person.pos[0], person.pos[1] - 1];
+        var rightPos = [person.pos[0] + 1, person.pos[1]];
+        var botPos = [person.pos[0], person.pos[1]  + 1];
+        var leftPos = [person.pos[0] - 1, person.pos[1]];
+
+        npcArr.forEach((npc) => {
+          if (npc.pos[0] === topPos[0] && npc.pos[1] === topPos[1]) {
+            this.hitNpc(fieldArr, person, npc)
+          }
+
+          if (npc.pos[0] === rightPos[0] && npc.pos[1] === rightPos[1]) {
+            this.hitNpc(fieldArr, person, npc)
+          }
+
+          if (npc.pos[0] === botPos[0] && npc.pos[1] === botPos[1]) {
+            this.hitNpc(fieldArr, person, npc)
+          }
+
+          if (npc.pos[0] === leftPos[0] && npc.pos[1] === leftPos[1]) {
+            this.hitNpc(fieldArr, person, npc)
+          }
+        })
+
+        break;
     }
   }
 
-  // function handler (fieldArr, person, event) {
-  //   console.log(event.code, fieldArr, person, this);
-  //   var keyCodeSet = new Set(['Space', 'KeyW', 'KeyD', 'KeyS', 'KeyA']);
-
-  //   if (keyCodeSet.has(event.code)) {
-  //     this.buttonPressedEvent(event.code, fieldArr, person);
-  //   }
-  // }
-
-  // var bound = handler.bind(this, gameObj.fieldArr, npcArr[0]);
-
-  // this.initPersonMovement = function (fieldArr, person) {
-  //   document.addEventListener('keydown', bound);
-  // }
-
-  // this.initPersonMovement = function (fieldArr, person) {
+  this.initPersonMovement = function (fieldArr, person, npcArr) {
     var keyCodeSet = new Set(['Space', 'KeyW', 'KeyD', 'KeyS', 'KeyA']);
 
     document.addEventListener('keydown', (function(event) {
-      console.log(this);
-      
       if (keyCodeSet.has(event.code)) {
-        this.buttonPressedEvent(event.code, fieldArr, person);
+        this.buttonPressedEvent(event.code, fieldArr, person, npcArr);
       }
     }).bind(this));
-  // }
+  }
+
+  this.hitNpc = function (fieldArr, person, npc) {
+    var npcTileNode = fieldArr[npc.pos[1]][npc.pos[0]].node;
+    var npcNode = npcTileNode.firstChild;
+
+    if (npcNode) {
+      var hpNode = npcNode.firstChild;
+      npc.healht -= person.hitDmg;
+
+      if (npc.healht <= 0) {
+        this.deleteItem(fieldArr, npc.pos);
+        npc.status = 'dead';
+      } else {
+        hpNode.style.width = `${npc.healht}%`;
+      }
+    }
+  }
+
+  this.takeItem = function (fieldArr, pos, person) {
+    var itemTileNode = fieldArr[pos[1]][pos[0]].node;
+    var itemName = fieldArr[pos[1]][pos[0]].item;
+    var itemChildNode = itemTileNode.firstChild;
+
+    if (itemChildNode) {
+      itemTileNode.removeChild(itemChildNode);
+
+      if (itemName === 'HP') {
+        person.healht = (person.healht + 20) > 100 ? 100 : person.healht + 20;
+        var personTileNode = fieldArr[person.pos[1]][person.pos[0]].node;
+        var personNode = personTileNode.firstChild;
+        var hpNode = personNode.firstChild;
+
+        hpNode.style.width = `${person.healht}%`;
+      } else if (itemName === 'Sword') {
+        person.hitDmg += 15;
+      }
+    }
+  }
 
   this.init = function () {
-    this.initWalls(gameObj);
-    this.initRooms(gameObj);
-    this.initHallways(gameObj, roomsArr);
-    this.initNPCs(gameObj.fieldArr, npcArr);
-    var person = this.initPerson(gameObj.fieldArr);
-    this.initItems(gameObj.fieldArr);
-    // this.initNpcMovement(gameObj, npcArr);
-    // this.initPersonMovement(gameObj.fieldArr, person);
+    this.initWalls(this.gameObj);
+    this.initRooms(this.gameObj);
+    this.initHallways(this.gameObj, roomsArr);
+    this.initNPCs(this.gameObj.fieldArr, this.npcArr);
+    this.person = this.initPerson(this.gameObj.fieldArr);
+    this.initItems(this.gameObj.fieldArr);
+    this.initNpcMovement(this.gameObj, this.npcArr);
+    this.initPersonMovement(this.gameObj.fieldArr, this.person, this.npcArr);
   }
 }
 
