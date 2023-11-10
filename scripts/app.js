@@ -196,7 +196,7 @@ var Game = function () {
     var npc = {
       pos: posArr,
       healht: 100,
-      hitDmg: 40,
+      hitDmg: 20,
       status: 'alive',
       moveDirection: 'none',
     }
@@ -381,23 +381,55 @@ var Game = function () {
     return cantMoveCount < 4 ? true : false;
   }
 
-  this.initNpcMovement = function (gameObj, npcArr) {
+  this.checkIfHitAvaible = function (npcPos, person) {
+    var posArr = [];
+    posArr.push([npcPos[0], npcPos[1] - 1]);
+    posArr.push([npcPos[0] + 1, npcPos[1]]);
+    posArr.push([npcPos[0], npcPos[1]  + 1]);
+    posArr.push([npcPos[0] - 1, npcPos[1]]);
+
+    for (var i = 0; i < posArr.length; ++i) {
+      if (posArr[i][0] === person.pos[0] && posArr[i][1] === person.pos[1]) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  this.initNpcMovement = function (gameObj, npcArr, person) {
     if (gameObj.status !== 'game') {
       return;
     }
 
     setInterval(() => {
+      var aliveNpc = 0;
+
       npcArr.forEach((item) => {
         if (this.checkIsPossibleToMove(gameObj.fieldArr, item) && item.status === 'alive') {
-          do {
-            var moveDirection = this.randomizeDirection();
-            var newPos = this.checkDirectionToMove(gameObj.fieldArr, item.pos, moveDirection, 'npc');
-          } while (!newPos);
-  
-          this.moveItem(gameObj.fieldArr, item.pos, newPos);
-          item.pos = newPos;
+          aliveNpc++;
+
+          if (this.checkIfHitAvaible(item.pos, person)) {
+            this.hitNpc(gameObj.fieldArr, item, person);
+
+            if (person.healht <= 0) {
+              this.gameOver('GAME OVER');              
+            }
+          } else {
+            do {
+              var moveDirection = this.randomizeDirection();
+              var newPos = this.checkDirectionToMove(gameObj.fieldArr, item.pos, moveDirection, 'npc');
+            } while (!newPos);
+    
+            this.moveItem(gameObj.fieldArr, item.pos, newPos);
+            item.pos = newPos;
+          }
         };
       })
+
+      if (aliveNpc === 0) {
+        this.gameOver('VICTORY');
+      }
     }, gameObj.speed)
   }
   
@@ -543,6 +575,17 @@ var Game = function () {
     }
   }
 
+  this.gameOver = function (text) {
+    var fieldElem = document.getElementById('field');
+    fieldElem.innerHTML = '';
+
+    var label = document.createElement('h1');
+    label.style.margin = 'auto';
+    label.style.fontSize = '60px';
+    label.innerText = text;
+    fieldElem.append(label);
+  }
+
   this.init = function () {
     this.initWalls(this.gameObj);
     this.initRooms(this.gameObj);
@@ -550,7 +593,7 @@ var Game = function () {
     this.initNPCs(this.gameObj.fieldArr, this.npcArr);
     this.person = this.initPerson(this.gameObj.fieldArr);
     this.initItems(this.gameObj.fieldArr);
-    this.initNpcMovement(this.gameObj, this.npcArr);
+    this.initNpcMovement(this.gameObj, this.npcArr, this.person);
     this.initPersonMovement(this.gameObj.fieldArr, this.person, this.npcArr);
   }
 }
