@@ -5,6 +5,8 @@ import { randomIntFromInterval, switchValues, fromObjToArr } from "./utils.js";
 var Game = function () {
   var gameObj = {
     fieldArr: [],
+    status: 'game',
+    speed: 1000,
   };
   var roomsArr = [];
   var npcArr = [];
@@ -102,6 +104,7 @@ var Game = function () {
   this.initHallwayX = function (arr, xPos) {
     for (var i = 0; i < 24; ++i) {
       var wallNode = arr[i][xPos].node;
+      arr[i][xPos].item = 'tile';
   
       if (wallNode.firstChild) {
         wallNode.removeChild(wallNode.firstChild);
@@ -112,6 +115,7 @@ var Game = function () {
   this.initHallwayY = function (arr, yPos) {
     for (var i = 0; i < 40; ++i) {
       var wallNode = arr[yPos][i].node;
+      arr[yPos][i].item = 'tile';
   
       if (wallNode.firstChild) {
         wallNode.removeChild(wallNode.firstChild);
@@ -192,7 +196,8 @@ var Game = function () {
       pos: posArr,
       healht: 100,
       hitDmg: 10,
-      status: 'alive'
+      status: 'alive',
+      moveDirection: 'none',
     }
 
     return npc;
@@ -201,15 +206,223 @@ var Game = function () {
   this.initNPCs = function (fieldArr, npcArr) {
     for (var i = 0; i < 10; ++i) {
       var npc = this.createNPC(this.findEmptyPlace(fieldArr));
-      console.log(npc);
+      npcArr.push(npc);
+      var npcXPos = npc.pos[0];
+      var npcYPos = npc.pos[1];
+      var npcNode = document.createElement('div');
+      npcNode.className = 'tileE';
+      var npcHPNode = document.createElement('div');
+      npcHPNode.className = 'health';
+      npcHPNode.style.width = '100%';
+      npcNode.append(npcHPNode);
+      fieldArr[npcYPos][npcXPos].node.append(npcNode);
+      fieldArr[npcYPos][npcXPos].item = 'npc';
     }
   }
+
+  this.initPerson = function (fieldArr) {
+    var person = {
+      pos: this.findEmptyPlace(fieldArr),
+      healht: 100,
+      hitDmg: 35,
+      status: 'alive',
+    }
+
+    var personXPos = person.pos[0];
+    var personYPos = person.pos[1];
+    var personNode = document.createElement('div');
+    personNode.className = 'tileP';
+    var personHPNode = document.createElement('div');
+    personHPNode.className = 'health';
+    personHPNode.style.width = '100%';
+    personNode.append(personHPNode);
+    fieldArr[personYPos][personXPos].node.append(personNode);
+    fieldArr[personYPos][personXPos].item = 'person';
+
+    return person;
+  }
+
+  this.createItem = function (fieldArr, clName) {
+    var itemName = clName === 'tileHP' ? 'HP' : 'Sword';
+    var itemPos = this.findEmptyPlace(fieldArr);
+    var itemNode = document.createElement('div');
+    itemNode.className = clName;
+    fieldArr[itemPos[1]][itemPos[0]].node.append(itemNode);
+    fieldArr[itemPos[1]][itemPos[0]].item = itemName;
+  }
+
+  this.initItems = function (fieldArr) {
+    for (var i = 0; i < 2; ++i) {
+      this.createItem(fieldArr, 'tileSW');
+    }
+
+    for (var i = 0; i < 10; ++i) {
+      this.createItem(fieldArr, 'tileHP');
+    }
+  }
+
+  this.moveItem = function (fieldArr, fromPosArr, toPosArr) {
+    var nodeToMove = fieldArr[fromPosArr[1]][fromPosArr[0]].node.firstChild;
+
+    if (nodeToMove) {
+      var nodeItemToMove = fieldArr[fromPosArr[1]][fromPosArr[0]].item;
+      fieldArr[fromPosArr[1]][fromPosArr[0]].node.removeChild(nodeToMove);
+  
+      fieldArr[toPosArr[1]][toPosArr[0]].node.append(nodeToMove);
+      var nodeItemFrom = fieldArr[toPosArr[1]][toPosArr[0]].item;
+      fieldArr[toPosArr[1]][toPosArr[0]].item = nodeItemToMove;
+      fieldArr[fromPosArr[1]][fromPosArr[0]].item = nodeItemFrom;
+    } else {
+      console.log('node have no child', fieldArr[fromPosArr[1]][fromPosArr[0]].node);
+    }
+  }
+
+  this.randomizeDirection = function () {
+    var num = randomIntFromInterval(0, 3);
+    
+    switch (num) {
+      case 0:
+        return 'up';
+      case 1:
+        return 'right';
+      case 2:
+        return 'down';
+      case 3:
+        return 'left';
+    }
+  }
+
+  this.isItEmpty = function (fieldArr, pos) {
+    if (pos[1] > 23 || pos[1] < 0) {
+      return false;
+    }
+
+    if (pos[0] > 39 || pos[0] < 0) {
+      return false;
+    }
+
+    var posItem = fieldArr[pos[1]][pos[0]].item;
+
+    if (posItem === 'tile') {
+      return true;
+    }
+    
+    return false;
+  }
+
+  this.checkDirectionToMove = function (fieldArr, pos, dir) {
+    switch (dir) {
+      case 'up':
+        if (this.isItEmpty(fieldArr, [pos[0], pos[1] - 1])) {
+          return [pos[0], pos[1] - 1];
+        }
+      case 'right':
+        if (this.isItEmpty(fieldArr, [pos[0] + 1, pos[1]])) {
+          return [pos[0] + 1, pos[1]];
+        }
+      case 'down':
+        if (this.isItEmpty(fieldArr, [pos[0], pos[1] + 1])) {
+          return [pos[0], pos[1] + 1];
+        }
+      case 'left':
+        if (this.isItEmpty(fieldArr, [pos[0] - 1, pos[1]])) {
+          return [pos[0] - 1, pos[1]];
+        }
+    }
+
+    return false;
+  }
+
+  this.checkIsPossibleToMove = function (fieldArr, npcObj) {
+    var npcPos = npcObj.pos;
+    var cantMoveCount = 0;
+
+    if (!this.checkDirectionToMove(fieldArr, npcPos, 'up')) {
+      cantMoveCount++;
+    }
+
+    if (!this.checkDirectionToMove(fieldArr, npcPos, 'right')) {
+      cantMoveCount++;
+    }
+
+    if (!this.checkDirectionToMove(fieldArr, npcPos, 'down')) {
+      cantMoveCount++;
+    }
+
+    if (!this.checkDirectionToMove(fieldArr, npcPos, 'left')) {
+      cantMoveCount++;
+    }
+    
+    return cantMoveCount < 4 ? true : false;
+  }
+
+  this.initNpcMovement = function (gameObj, npcArr) {
+    if (gameObj.status !== 'game') {
+      return;
+    }
+
+    setInterval(() => {
+      npcArr.forEach((item) => {
+        if (this.checkIsPossibleToMove(gameObj.fieldArr, item)) {
+          do {
+            var moveDirection = this.randomizeDirection();
+            var newPos = this.checkDirectionToMove(gameObj.fieldArr, item.pos, moveDirection);
+          } while (!newPos);
+  
+          this.moveItem(gameObj.fieldArr, item.pos, newPos);
+          item.pos = newPos;
+        };
+      })
+    }, gameObj.speed)
+  }
+  
+  this.buttonPressedEvent = function (code, fieldArr, person) {
+    switch (code) {
+      case 'KeyW':
+        var newPos = this.checkDirectionToMove(fieldArr, person.pos, 'up');
+
+        if (newPos) {
+          this.moveItem(fieldArr, person.pos, newPos);
+        }
+    }
+  }
+
+  // function handler (fieldArr, person, event) {
+  //   console.log(event.code, fieldArr, person, this);
+  //   var keyCodeSet = new Set(['Space', 'KeyW', 'KeyD', 'KeyS', 'KeyA']);
+
+  //   if (keyCodeSet.has(event.code)) {
+  //     this.buttonPressedEvent(event.code, fieldArr, person);
+  //   }
+  // }
+
+  // var bound = handler.bind(this, gameObj.fieldArr, npcArr[0]);
+
+  // this.initPersonMovement = function (fieldArr, person) {
+  //   document.addEventListener('keydown', bound);
+  // }
+
+  // this.initPersonMovement = function (fieldArr, person) {
+    var keyCodeSet = new Set(['Space', 'KeyW', 'KeyD', 'KeyS', 'KeyA']);
+
+    document.addEventListener('keydown', (function(event) {
+      console.log(this);
+      
+      if (keyCodeSet.has(event.code)) {
+        this.buttonPressedEvent(event.code, fieldArr, person);
+      }
+    }).bind(this));
+  // }
 
   this.init = function () {
     this.initWalls(gameObj);
     this.initRooms(gameObj);
     this.initHallways(gameObj, roomsArr);
     this.initNPCs(gameObj.fieldArr, npcArr);
+    var person = this.initPerson(gameObj.fieldArr);
+    this.initItems(gameObj.fieldArr);
+    // this.initNpcMovement(gameObj, npcArr);
+    // this.initPersonMovement(gameObj.fieldArr, person);
   }
 }
 

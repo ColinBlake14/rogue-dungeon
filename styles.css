@@ -57,24 +57,33 @@ h1 {
   z-index: 10; 
 }
 
-.field .tileP { 
+.field .tileP {
+  width: 30px; 
+  height: 30px; 
+  background-size: 100%; 
   background-image: url(images/tile-P.png); 
   z-index: 10; 
 }
 
-.field .tileHP { 
+.field .tileHP {
+  width: 30px; 
+  height: 30px; 
+  background-size: 100%; 
   background-image: url(images/tile-HP.png); 
   z-index: 9; 
 }
 
-.field .tileSW { 
+.field .tileSW {
+  width: 30px; 
+  height: 30px; 
+  background-size: 100%; 
   background-image: url(images/tile-SW.png); 
   z-index: 9; 
 }
 
-.field .tile .health { 
+.field .tileE .health { 
   background-color: #ff0000; 
-  z-index: 11; position: absolute; 
+  z-index: 11; position: relative; 
   left: 0px; 
   top: 0px; 
   height: 3px; 
@@ -83,7 +92,7 @@ h1 {
 .field .tileP .health { 
   background-color: #00ff00; 
   z-index: 11; 
-  position: absolute; 
+  position: relative; 
   left: 0px; 
   top: 0px; 
   height: 3px; 
